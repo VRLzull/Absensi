@@ -150,7 +150,7 @@ router.post('/verify', upload.single('face_image'), async (req, res) => {
     const comparison = await faceRecognitionService.compareFaces(
       inputDescriptor, 
       storedDescriptor, 
-      0.6 // threshold
+      0.55 // threshold diturunkan sedikit untuk meningkatkan keberhasilan login (dari 0.6)
     );
 
     if (comparison.isMatch) {
@@ -171,11 +171,11 @@ router.post('/verify', upload.single('face_image'), async (req, res) => {
     } else {
       res.status(401).json({
         success: false,
-        message: 'Verifikasi wajah gagal - wajah tidak cocok',
+        message: 'Verifikasi wajah gagal - wajah tidak cocok. Pastikan pencahayaan cukup dan wajah terlihat jelas.',
         data: {
           verified: false,
           confidence: comparison.similarity,
-          threshold: 0.6
+          threshold: 0.55
         }
       });
     }

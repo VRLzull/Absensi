@@ -1,11 +1,11 @@
 const mysql = require('mysql2/promise');
 
 const dbConfig = {
-  host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
-  port: process.env.MYSQLPORT || process.env.DB_PORT || 3306,
-  user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
-  password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
-  database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'absensi',
+  host: 'localhost',
+  port: 3306,
+  user: 'root',           // Laragon default user
+  password: '',           // Laragon default (empty password)
+  database: 'absensi',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -13,22 +13,24 @@ const dbConfig = {
 
 const pool = mysql.createPool({
   ...dbConfig,
-  acquireTimeout: 60000,
-  timeout: 60000,
-  reconnect: true,
+  waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0
 });
 
 // Test connection on startup
-pool.getConnection((err, connection) => {
-  if (err) {
+(async () => {
+  try {
+    const connection = await pool.getConnection();
+    console.log('✅ Database connected successfully');
+    connection.release();
+  } catch (err) {
     console.error('❌ Database connection failed:', err);
-    process.exit(1);
+    // Don't exit process, just log error so app can try again later
   }
-  console.log('✅ Database connected successfully');
-  connection.release();
-});
+})();
 
 // Handle pool errors
 pool.on('error', (err) => {

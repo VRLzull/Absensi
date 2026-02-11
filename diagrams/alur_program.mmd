@@ -1,0 +1,67 @@
+```mermaid
+flowchart TB
+    %% Start / Login Section
+    NIK([NIK / Username])
+    PWD([Password])
+    
+    NIK & PWD --- Login[Login System]
+    
+    Login --> Decision{Decision / Role}
+    
+    %% Admin Branch (Left)
+    Decision -- "Admin Role" --> Admin[admin_users]
+    subgraph Admin_Fields [Admin Attributes]
+        direction LR
+        A1(id)
+        A2(username)
+        A3(password_hash)
+        A4(role / level)
+        A5(full_name)
+    end
+    Admin --- Admin_Fields
+    
+    %% Register Pegawai Branch (Right)
+    Decision -- "Manage Data" --> Register[employees]
+    subgraph Emp_Fields [Employee Attributes]
+        direction LR
+        E1(employee_id / NIK)
+        E2(full_name)
+        E3(gender)
+        E4(department)
+        E5(position)
+        E6(address)
+        E7(hire_date)
+        E8(foto / faces)
+    end
+    Register --- Emp_Fields
+    
+    %% Absensi Branch (Bottom)
+    Decision -- "Attendance" --> Absensi[attendance]
+    subgraph Abs_Fields [Attendance Attributes]
+        direction LR
+        B1(employee_id)
+        B2(check_in / jam masuk)
+        B3(check_out / jam keluar)
+        B4(status: present, late, absent)
+        B5(notes / izin / sakit)
+        B6(face_image)
+    end
+    Absensi --- Abs_Fields
+
+    %% Connection to Face Data
+    Register --- Faces[employee_faces]
+    subgraph Face_Fields [Face Attributes]
+        F1(face_descriptor)
+        F2(face_image_path)
+    end
+    Faces --- Face_Fields
+
+    %% Style
+    classDef primary fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef decision fill:#fff,stroke:#333,stroke-width:4px;
+    classDef attr fill:#e1f5fe,stroke:#01579b;
+    
+    class Login,Admin,Register,Absensi,Faces primary;
+    class Decision decision;
+    class A1,A2,A3,A4,A5,E1,E2,E3,E4,E5,E6,E7,E8,B1,B2,B3,B4,B5,B6,F1,F2 attr;
+```

@@ -1,0 +1,126 @@
+graph TD 
+      %% Titik Awal 
+      Start((Mulai)) --> Landing[Halaman Login] 
+  
+      %% Proses Login Detail 
+      subgraph "Proses Autentikasi" 
+          direction TB
+          Landing --- L1([Username]) 
+          Landing --- L2([Password]) 
+          L1 --- Submit
+          L2 --- Submit
+          Submit[Klik Tombol Masuk] --> AuthAPI{Validasi Server} 
+          AuthAPI -- Salah --> ErrorMsg[Pesan Error] 
+          AuthAPI -- Benar --> SaveToken[Simpan Token JWT] 
+          SaveToken --- T1([LocalStorage]) 
+      end 
+  
+      %% Cek Role 
+      SaveToken --> RoleCheck{Cek Role User} 
+  
+      %% Alur Admin 
+      subgraph "Panel Admin (Pengelola)" 
+          direction TB
+          RoleCheck -- Admin --> AdminDash[Dashboard Admin] 
+          AdminDash --> AdminMenu{Pilih Menu Admin} 
+          
+          %% Menu Karyawan 
+          AdminMenu --> MenuEmp[Data Karyawan] 
+          MenuEmp --- E1([NIP]) 
+          MenuEmp --- E2([Nama]) 
+          MenuEmp --- E3([Jabatan]) 
+          MenuEmp --- E4([Foto/Descriptor]) 
+          E1 & E2 & E3 & E4 --> EmpAction[Kelola Data & Wajah] 
+          
+          %% Menu Laporan 
+          AdminMenu --> MenuRep[Laporan Absensi] 
+          MenuRep --- R1([Range Tanggal]) 
+          MenuRep --- R2([Export PDF/Excel]) 
+          R1 & R2 --> ViewRep[Rekap Kehadiran] 
+          
+          %% Menu Settings & Holidays 
+          AdminMenu --> MenuSet[Pengaturan Sistem] 
+          MenuSet --- S1([Jam Kerja]) 
+          MenuSet --- S2([Lokasi GPS]) 
+          MenuSet --- S3([Hari Libur]) 
+          
+          %% Menu Feedback Admin 
+          AdminMenu --> MenuFeedAdmin[Feedback Siswa] 
+          MenuFeedAdmin --- F1([Status Progress]) 
+          MenuFeedAdmin --- F2([Estimasi Selesai]) 
+          MenuFeedAdmin --- F3([Pesan Balasan]) 
+          F1 & F2 & F3 --> FeedAction[Update Aduan] 
+      end 
+  
+      %% Alur Siswa 
+      subgraph "Panel Siswa (User)" 
+          direction TB
+          RoleCheck -- Student --> StudentDash[Dashboard Siswa] 
+          StudentDash --> StudentMenu{Pilih Menu Siswa} 
+          
+          %% Menu Absensi AI 
+          StudentMenu --> MenuAbsen[Absensi Wajah] 
+          MenuAbsen --- A1([Scan Wajah Kamera]) 
+          MenuAbsen --- A2([Titik Lokasi]) 
+          A1 & A2 --> AIProcess[AI Comparison] 
+          AIProcess --> AICheck{Wajah Cocok?} 
+          AICheck -- Ya --> AISuccess[Absen Tercatat] 
+          
+          %% Menu Feedback Siswa 
+          StudentMenu --> MenuFeedStu[Kirim Feedback] 
+          MenuFeedStu --- K1([Judul]) 
+          MenuFeedStu --- K2([Deskripsi]) 
+          MenuFeedStu --- K3([Kategori]) 
+          K1 & K2 & K3 --> CreateFeed[Input Aduan] 
+          
+          %% Profile & History 
+          StudentMenu --> MenuProf[Profil & Riwayat] 
+          MenuProf --- P1([Update Bio]) 
+          MenuProf --- P2([Lihat Log Absen]) 
+      end 
+  
+      %% Proses Logout 
+      subgraph "Proses Keluar" 
+          direction TB
+          AdminMenu --> LogoutBtn[Tombol Logout] 
+          StudentMenu --> LogoutBtn 
+          LogoutBtn --> ClearSession[Hapus Token] 
+          ClearSession --> RedirectLogin[Ke Login] 
+      end 
+  
+      RedirectLogin --> End((Selesai)) 
+  
+      %% Styling - Fokus pada Kontras Tinggi agar teks terbaca jelas 
+      style Start fill:#FFEBEE,stroke:#B71C1C,color:#B71C1C 
+      style End fill:#FFEBEE,stroke:#B71C1C,color:#B71C1C 
+      
+      %% Belah Ketupat (Decisions) - Kuning Terang dengan Border Gelap dan Teks Hitam 
+      style AuthAPI fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px,color:#000 
+      style RoleCheck fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px,color:#000 
+      style AICheck fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px,color:#000 
+      
+      %% Atribut Ovals (Admin Side) - Biru Sangat Muda dengan Border Biru Tua dan Teks Hitam 
+      style L1 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style L2 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style T1 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style E1 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style E2 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style E3 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style E4 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style R1 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style R2 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style S1 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style S2 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style S3 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style F1 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style F2 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      style F3 fill:#E3F2FD,stroke:#1E88E5,color:#000 
+      
+      %% Atribut Ovals (Student Side) - Hijau Sangat Muda dengan Border Hijau Tua dan Teks Hitam 
+      style A1 fill:#E8F5E9,stroke:#43A047,color:#000 
+      style A2 fill:#E8F5E9,stroke:#43A047,color:#000 
+      style K1 fill:#E8F5E9,stroke:#43A047,color:#000 
+      style K2 fill:#E8F5E9,stroke:#43A047,color:#000 
+      style K3 fill:#E8F5E9,stroke:#43A047,color:#000 
+      style P1 fill:#E8F5E9,stroke:#43A047,color:#000 
+      style P2 fill:#E8F5E9,stroke:#43A047,color:#000 

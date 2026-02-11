@@ -54,20 +54,45 @@ const upload = multer({
 // Get all attendance records
 router.get('/', verifyToken, async (req, res) => {
   try {
-    const { page = 1, limit = 20, date, employee_id, status } = req.query;
+    const { page = 1, limit = 20, date, employee_id, status, month } = req.query;
     const offset = (page - 1) * limit;
 
     let whereClause = 'WHERE 1=1';
     let params = [];
 
-    if (date) {
-      // Pastikan format tanggal benar dan gunakan DATE() untuk membandingkan hanya bagian tanggal
-      whereClause += ' AND DATE(a.check_in) = DATE(?)';
-      params.push(date);
-      console.log('📅 Filtering attendance by date:', date);
+    // Jika user adalah siswa, batasi data hanya miliknya sendiri
+    if (req.user.role === 'student') {
+      const [userRows] = await pool.query(
+        "SELECT employee_record_id FROM admin_users WHERE id = ?",
+        [req.user.id]
+      );
+      
+      const employeeRecordId = userRows[0]?.employee_record_id;
+      
+      if (employeeRecordId) {
+        whereClause += ' AND a.employee_id = ?';
+        params.push(employeeRecordId);
+      } else {
+        // Jika tidak ada record_id, kembalikan data kosong
+        return res.json({
+          success: true,
+          data: [],
+          pagination: { total: 0, page, limit, totalPages: 0 }
+        });
+      }
     }
 
-    if (employee_id) {
+    if (date) {
+      whereClause += ' AND DATE(a.check_in) = DATE(?)';
+      params.push(date);
+    }
+
+    if (month) {
+      whereClause += ' AND DATE_FORMAT(a.check_in, "%Y-%m") = ?';
+      params.push(month);
+    }
+
+    if (employee_id && req.user.role !== 'student') {
       whereClause += ' AND a.employee_id = ?';
       params.push(employee_id);
     }
@@ -86,6 +111,9 @@ router.get('/', verifyToken, async (req, res) => {
 
     const total = countResult[0].total;
 
+    // Tambahkan params untuk pagination
+    const finalParams = [...params, parseInt(limit), parseInt(offset)];
+
     // Get attendance data with pagination
     const [rows] = await pool.execute(`
       SELECT 
@@ -99,24 +127,21 @@ router.get('/', verifyToken, async (req, res) => {
       ${whereClause}
       ORDER BY a.check_in DESC
       LIMIT ? OFFSET ?
-    `, [...params, parseInt(limit), offset]);
+    `, finalParams);
 
     res.json({
       success: true,
       data: rows,
       pagination: {
+        total,
         page: parseInt(page),
         limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limit)
       }
     });
-
-  } catch (error) {
-    console.error('Get attendance error:', error);
-    res.status(500).json({ 
-      error: 'Terjadi kesalahan pada server' 
-    });
+  } catch (err) {
+    console.error('Error getting attendance:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -239,8 +264,8 @@ router.post('/check-in', upload.single('face_image'), [
             confidence: sim
           };
         }
-        if (Date.now() - startAt > 30000) {
-          console.log('⏰ [check-in] overall comparison timeout reached');
+        if (Date.now() - startAt > 60000) {
+          console.log('⏰ [check-in] overall comparison timeout reached (60s)');
           break;
         }
       } catch (e) {
@@ -251,11 +276,11 @@ router.post('/check-in', upload.single('face_image'), [
     if (!bestMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Wajah tidak dikenali. Silakan daftar terlebih dahulu.',
+        message: 'Wajah tidak dikenali atau tidak cukup mirip. Pastikan pencahayaan cukup, tidak menggunakan masker/kacamata hitam, dan wajah menghadap kamera.',
         data: {
           verified: false,
           similarity: highestSimilarity,
-          threshold: 0.6
+          threshold: 0.55
         }
       });
     }

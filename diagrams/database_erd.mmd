@@ -1,0 +1,101 @@
+erDiagram
+    admin_users ||--o| employees : "linked_to (employee_record_id)"
+    admin_users ||--o{ feedback : "reports (user_id)"
+    admin_users ||--o{ feedback_responses : "replies (admin_id)"
+    
+    employees ||--o{ employee_faces : "has_biometric"
+    employees ||--o{ attendance : "logs_attendance"
+    
+    feedback ||--o{ feedback_responses : "has_replies"
+
+    admin_users {
+        int id PK
+        varchar username UK
+        varchar email UK
+        varchar password_hash
+        varchar full_name
+        varchar phone
+        text address
+        varchar department
+        varchar position
+        text bio
+        enum role "super_admin, admin, student"
+        int employee_record_id FK
+        boolean is_active
+        timestamp created_at
+    }
+
+    employees {
+        int id PK
+        varchar employee_id UK "NIP"
+        varchar full_name
+        varchar email
+        varchar phone
+        varchar position
+        varchar department
+        enum gender
+        text address
+        date hire_date
+        boolean is_active
+        timestamp created_at
+    }
+
+    employee_faces {
+        int id PK
+        int employee_id FK
+        longtext face_descriptor
+        varchar face_image_path
+        boolean is_primary
+        timestamp created_at
+    }
+
+    attendance {
+        int id PK
+        int employee_id FK
+        datetime check_in
+        datetime check_out
+        varchar check_in_image
+        varchar check_out_image
+        varchar check_in_location
+        varchar check_out_location
+        enum status "present, late, absent, half_day"
+        text notes
+        timestamp created_at
+    }
+
+    feedback {
+        int id PK
+        int user_id FK "Reporter (admin_users)"
+        varchar category
+        varchar title
+        text description
+        enum status "pending, in_progress, resolved, rejected"
+        text admin_response
+        timestamp created_at
+    }
+
+    feedback_responses {
+        int id PK
+        int feedback_id FK
+        int admin_id FK "Responder (admin_users)"
+        text message
+        timestamp created_at
+    }
+
+    holidays {
+        int id PK
+        date date UK
+        varchar name
+        enum type "national, company, other"
+        boolean is_annual
+    }
+
+    system_settings {
+        int id PK
+        varchar setting_key UK
+        text setting_value
+        enum setting_type "string, number, boolean, json"
+        varchar category
+        text description
+        boolean is_active
+    }

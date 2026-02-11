@@ -68,9 +68,31 @@ const translations = {
     // Login
     'login.title': 'Absensi App',
     'login.subtitle': 'Sistem Manajemen Absensi',
-    'login.username': 'Username',
-    'login.password': 'Password',
+    'login.username': 'Nama Pengguna',
+    'login.password': 'Kata Sandi',
     'login.submit': 'Masuk',
+
+    // Feedback - Laporan
+    'nav.feedback': 'Feedback Absensi',
+    'feedback.title': 'Feedback Absensi Siswa',
+    'feedback.add': 'Buat Laporan',
+    'feedback.list': 'Riwayat Laporan',
+    'feedback.category': 'Kategori',
+    'feedback.status': 'Status',
+    'feedback.subject': 'Judul',
+    'feedback.description': 'Detail Laporan',
+    'feedback.response': 'Tanggapan',
+    'feedback.status.pending': 'Menunggu',
+    'feedback.status.in_progress': 'Diproses',
+    'feedback.status.resolved': 'Selesai',
+    'feedback.status.rejected': 'Ditolak',
+    'feedback.timeline': 'Timeline & Estimasi',
+    'feedback.submitted': 'Dikirim',
+    'feedback.processed': 'Diproses',
+    'feedback.estimated': 'Estimasi Waktu',
+    'feedback.completed': 'Selesai',
+    'feedback.estimated_placeholder': 'Berapa jam/hari yang dibutuhkan?',
+    'feedback.estimated_helper': 'Admin: Masukkan estimasi waktu untuk menyelesaikan aduan ini',
   },
   en: {
     // Common
@@ -138,11 +160,33 @@ const translations = {
     'settings.reset': 'Reset Default',
     
     // Login
-    'login.title': 'Attendance App',
-    'login.subtitle': 'Attendance Management System',
+    'login.title': 'Login to your account',
+    'login.subtitle': 'Enter your credentials to access the system',
     'login.username': 'Username',
     'login.password': 'Password',
     'login.submit': 'Login',
+
+    // Feedback - Aspiration
+    'nav.feedback': 'Aspirations & Reports',
+    'feedback.title': 'Student Aspirations & Reports',
+    'feedback.add': 'Create Aspiration',
+    'feedback.list': 'History',
+    'feedback.category': 'Category',
+    'feedback.status': 'Status',
+    'feedback.subject': 'Subject',
+    'feedback.description': 'Description',
+    'feedback.response': 'Response',
+    'feedback.status.pending': 'Pending',
+    'feedback.status.in_progress': 'In Progress',
+    'feedback.status.resolved': 'Resolved',
+    'feedback.status.rejected': 'Rejected',
+    'feedback.timeline': 'Timeline & Estimation',
+    'feedback.submitted': 'Submitted',
+    'feedback.processed': 'In Progress',
+    'feedback.estimated': 'Estimated Time',
+    'feedback.completed': 'Completed',
+    'feedback.estimated_placeholder': 'How many hours/days needed?',
+    'feedback.estimated_helper': 'Admin: Enter the estimated time to resolve this issue',
   }
 };
 

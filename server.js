@@ -3,7 +3,7 @@ require('dotenv').config({ path: './config.env' });
 
 // Validate required environment variables
 function validateEnvironment() {
-  const required = ['NODE_ENV']; // Simplified for initial deploy
+  const required = ['JWT_SECRET', 'NODE_ENV'];
   const missing = required.filter(key => !process.env[key]);
   
   if (missing.length > 0) {
@@ -19,26 +19,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
-const fs = require('fs');
 const faceRecognitionService = require('./services/faceRecognitionService');
 
 const app = express();
-
-// Ensure upload directories exist
-const uploadDirs = [
-  'uploads',
-  'uploads/profiles',
-  'uploads/face-recognition',
-  'uploads/attendance'
-];
-uploadDirs.forEach(dir => {
-  const fullPath = path.join(__dirname, dir);
-  if (!fs.existsSync(fullPath)) {
-    fs.mkdirSync(fullPath, { recursive: true });
-    console.log(`📁 Created directory: ${dir}`);
-  }
-});
-
 const PORT = process.env.PORT || 5000;
 
 // Security middleware
@@ -64,14 +47,18 @@ app.use((req, res, next) => {
 });
 
 // Rate limiting
+const isDev = (process.env.NODE_ENV !== 'production');
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 1000 : 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS' || req.path === '/api/health'
 });
 app.use(limiter);
 
-// CORS configuration - Allow all origins for development
-app.use(cors({
+// CORS configuration
+const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
@@ -94,10 +81,12 @@ app.use(cors({
   ],
   preflightContinue: false,
   optionsSuccessStatus: 200
-}));
+};
 
-// Handle preflight requests
-app.options('*', cors());
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly using the same options
+app.options('*', cors(corsOptions));
 
 // Body parsing middleware
 app.use(express.json({ limit: '50mb' }));
@@ -111,6 +100,7 @@ app.use('/models', express.static(path.join(__dirname, 'models')));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/employees', require('./routes/employees'));
 app.use('/api/attendance', require('./routes/attendance'));
+app.use('/api/feedback', require('./routes/feedback'));
 app.use('/api/face-recognition', require('./routes/faceRecognition'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/dashboard', require('./routes/dashboard'));
@@ -149,30 +139,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler for API
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ error: 'API Route not found' });
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({ error: 'Route not found' });
 });
-
-// Serve Frontend Static Files in Production
-if (process.env.NODE_ENV === 'production') {
-  // Path to the frontend build folder
-  const frontendPath = path.join(__dirname, 'client/dist');
-  
-  // Serve static files from the React app
-  app.use(express.static(frontendPath));
-
-  // The "catchall" handler: for any request that doesn't
-  // match one above, send back React's index.html file.
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  });
-} else {
-  // Simple 404 for non-production
-  app.use('*', (req, res) => {
-    res.status(404).json({ error: 'Route not found' });
-  });
-}
 
 // Initialize face recognition service on server start
 async function initializeServices() {
@@ -215,4 +185,19 @@ process.on('SIGINT', () => {
     console.log('✅ Server closed');
     process.exit(0);
   });
+});
+
+// Global Error Handlers to prevent silent crashes
+process.on('uncaughtException', (err) => {
+  console.error('❌ UNCAUGHT EXCEPTION! Shutting down...');
+  console.error(err.name, err.message);
+  console.error(err.stack);
+  // Optional: Restart gracefully or exit non-zero
+  // process.exit(1); // Nodemon will restart it
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('❌ UNHANDLED REJECTION! 💥');
+  console.error(err.name, err.message);
+  console.error(err.stack);
 });

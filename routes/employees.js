@@ -241,12 +241,15 @@ router.put('/:id', verifyToken, [
   // ✅ Input validation rules
   body('full_name')
     .optional()
-    .isLength({ min: 2, max: 100 }).withMessage('Nama lengkap harus 2-100 karakter')
-    .matches(/^[A-Za-z\s]+$/).withMessage('Nama lengkap hanya boleh huruf dan spasi'),
+    .isLength({ min: 2, max: 100 }).withMessage('Nama lengkap harus 2-100 karakter'),
   
   body('email')
     .optional()
     .isEmail().withMessage('Format email tidak valid'),
+  
+  body('employee_id')
+    .optional()
+    .isLength({ min: 3, max: 20 }).withMessage('Employee ID harus 3-20 karakter'),
   
   body('phone')
     .optional()
@@ -284,6 +287,7 @@ router.put('/:id', verifyToken, [
   try {
     const { id } = req.params;
     const { 
+      employee_id,
       full_name, 
       email, 
       phone, 
@@ -296,7 +300,7 @@ router.put('/:id', verifyToken, [
 
     // Check if employee exists
     const [existing] = await pool.execute(`
-      SELECT id FROM employees WHERE id = ?
+      SELECT id, employee_id FROM employees WHERE id = ?
     `, [id]);
 
     if (existing.length === 0) {
@@ -305,18 +309,107 @@ router.put('/:id', verifyToken, [
       });
     }
 
-    // Update employee
-    await pool.execute(`
-      UPDATE employees 
-      SET full_name = ?, email = ?, phone = ?, position = ?, department = ?, 
-          gender = ?, address = ?, hire_date = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `, [full_name, email, phone, position, department, gender, address, hire_date, id]);
+    // Check if new employee_id already exists (if changed)
+    if (employee_id && employee_id !== existing[0].employee_id) {
+      const [duplicate] = await pool.execute(
+        'SELECT id FROM employees WHERE employee_id = ? AND id != ?',
+        [employee_id, id]
+      );
+      if (duplicate.length > 0) {
+        return res.status(400).json({
+          error: 'Employee ID sudah digunakan oleh pegawai lain'
+        });
+      }
+    }
 
-    res.json({
-      success: true,
-      message: 'Data pegawai berhasil diupdate'
-    });
+    // Start transaction to sync with admin_users
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // Build dynamic update query
+      const updateFields = [];
+      const updateParams = [];
+
+      if (employee_id) {
+        updateFields.push('employee_id = ?');
+        updateParams.push(employee_id);
+      }
+      if (full_name) {
+        updateFields.push('full_name = ?');
+        updateParams.push(full_name);
+      }
+      if (email !== undefined) {
+        updateFields.push('email = ?');
+        updateParams.push(email);
+      }
+      if (phone !== undefined) {
+        updateFields.push('phone = ?');
+        updateParams.push(phone);
+      }
+      if (position !== undefined) {
+        updateFields.push('position = ?');
+        updateParams.push(position);
+      }
+      if (department !== undefined) {
+        updateFields.push('department = ?');
+        updateParams.push(department);
+      }
+      if (gender) {
+        updateFields.push('gender = ?');
+        updateParams.push(gender);
+      }
+      if (address !== undefined) {
+        updateFields.push('address = ?');
+        updateParams.push(address);
+      }
+      if (hire_date) {
+        // Ensure hire_date is in YYYY-MM-DD format if it's an ISO string
+        const formattedDate = hire_date.includes('T') ? hire_date.split('T')[0] : hire_date;
+        updateFields.push('hire_date = ?');
+        updateParams.push(formattedDate);
+      }
+
+      if (updateFields.length > 0) {
+        updateFields.push('updated_at = CURRENT_TIMESTAMP');
+        const sql = `UPDATE employees SET ${updateFields.join(', ')} WHERE id = ?`;
+        updateParams.push(id);
+        await connection.execute(sql, updateParams);
+      }
+
+      // Sync with admin_users if exists and full_name or email changed
+      if (full_name || email) {
+        const syncFields = [];
+        const syncParams = [];
+        if (full_name) {
+          syncFields.push('full_name = ?');
+          syncParams.push(full_name);
+        }
+        if (email) {
+          syncFields.push('email = ?');
+          syncParams.push(email);
+        }
+        syncParams.push(id);
+        
+        await connection.execute(`
+          UPDATE admin_users 
+          SET ${syncFields.join(', ')}
+          WHERE employee_record_id = ?
+        `, syncParams);
+      }
+
+      await connection.commit();
+
+      res.json({
+        success: true,
+        message: 'Data pegawai berhasil diupdate'
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
 
   } catch (error) {
     console.error('Update employee error:', error);

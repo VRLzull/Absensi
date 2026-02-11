@@ -48,7 +48,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Get admin user from database
+    // Get user from database
     const [rows] = await pool.execute(
       'SELECT id, username, email, full_name, phone, department, position, role, is_active, password_hash FROM admin_users WHERE username = ? AND is_active = TRUE',
       [username]
@@ -77,7 +77,7 @@ router.post('/login', async (req, res) => {
         username: user.username, 
         role: user.role 
       },
-      process.env.JWT_SECRET, // ✅ Secure: Using environment variable
+      process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
     );
 
@@ -92,6 +92,100 @@ router.post('/login', async (req, res) => {
 
   } catch (error) {
     console.error('Login error:', error);
+    res.status(500).json({ 
+      error: 'Terjadi kesalahan pada server' 
+    });
+  }
+});
+
+// Register route
+router.post('/register', async (req, res) => {
+  try {
+    const { username, email, password, full_name, employee_id } = req.body;
+
+    if (!username || !email || !password || !full_name) {
+      return res.status(400).json({ 
+        error: 'Semua field harus diisi' 
+      });
+    }
+
+    // Check if user already exists
+    const [existing] = await pool.execute(
+      'SELECT id FROM admin_users WHERE username = ? OR email = ?',
+      [username, email]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({ 
+        error: 'Username atau email sudah terdaftar' 
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    let employeeRecordId = null;
+    
+    // Start transaction to ensure both records are created
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      if (employee_id) {
+        // Find employee record by employee_id (e.g. EMP001)
+        const [empRows] = await connection.execute(
+          'SELECT id FROM employees WHERE employee_id = ?',
+          [employee_id]
+        );
+        if (empRows.length > 0) {
+          employeeRecordId = empRows[0].id;
+        } else {
+          // If employee_id provided but not found, create it?
+          // For now, let's create a new employee if not found
+          const [newEmp] = await connection.execute(
+            'INSERT INTO employees (employee_id, full_name, email) VALUES (?, ?, ?)',
+            [employee_id, full_name, email]
+          );
+          employeeRecordId = newEmp.insertId;
+        }
+      } else {
+        // Generate a new employee_id if not provided
+        const generatedId = `STU-${Date.now()}`;
+        const [newEmp] = await connection.execute(
+          'INSERT INTO employees (employee_id, full_name, email) VALUES (?, ?, ?)',
+          [generatedId, full_name, email]
+        );
+        employeeRecordId = newEmp.insertId;
+      }
+
+      // Insert new user with 'student' role linked to the employee record
+      const [result] = await connection.execute(
+        'INSERT INTO admin_users (username, email, password_hash, full_name, role, employee_record_id) VALUES (?, ?, ?, ?, ?, ?)',
+        [username, email, hashedPassword, full_name, 'student', employeeRecordId]
+      );
+
+      await connection.commit();
+
+      res.status(201).json({
+        message: 'Registrasi berhasil',
+        user: {
+          id: result.insertId,
+          username,
+          email,
+          full_name,
+          role: 'student',
+          employee_record_id: employeeRecordId
+        }
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+  } catch (error) {
+    console.error('Registration error:', error);
     res.status(500).json({ 
       error: 'Terjadi kesalahan pada server' 
     });
